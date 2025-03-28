@@ -1,0 +1,15 @@
+loguru
+mkdocs
+pip
+pytest
+ruff
+python-dotenv
+tqdm
+typer
+-e .
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+pickle5
