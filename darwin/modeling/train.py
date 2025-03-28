@@ -12,6 +12,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import cross_val_score, KFold
 
 from darwin.config import (
+    RAW_DATA_DIR,
     MODELS_DIR,
     PROCESSED_DATA_DIR,
     SCORES_DIR,
@@ -21,6 +22,7 @@ from darwin.config import (
 )
 # ---------------------
 
+raw_data_path: Path = RAW_DATA_DIR / 'data.csv'
 preprocessed_data_path: Path = PROCESSED_DATA_DIR / 'preprocessed_data.csv'
 feature_imp_path: Path = PROCESSED_DATA_DIR / 'feature_imp.csv'
 anova_path: Path = PROCESSED_DATA_DIR / 'anova.csv'
@@ -35,12 +37,14 @@ def main(
 ):
     logger.info("Evaluating models...")
     # Define the list of datasets the models will be evaluated on
-    df_list = [pd.read_csv(preprocessed_data_path), 
+    raw_data = pd.read_csv(raw_data_path).drop(["ID", "class"], axis="columns")
+
+    df_list = [raw_data, 
             pd.read_csv(feature_imp_path),
             pd.read_csv(anova_path), 
             pd.read_csv(rfe_path)]
     
-    name = ['preprocessed', 'feature_imp', 'anova', 'rfe']
+    name = ['raw', 'feature_imp', 'anova', 'rfe']
 
     for df, name in zip(df_list, name):
         score_path: Path = SCORES_DIR / f"{name}_score.csv"
