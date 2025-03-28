@@ -71,13 +71,16 @@ data: requirements
 
 ## Make feature selection
 .PHONY: features
-features: requirements
+features:
 	$(PYTHON_INTERPRETER) darwin/features.py
 
 ## Make feature selection
 .PHONY: train
 train:
 	$(PYTHON_INTERPRETER) darwin/modeling/train.py
+
+.PHONY: run
+run: data features train
 
 #################################################################################
 # Self Documenting Commands                                                     #
