@@ -31,11 +31,15 @@ def main(
     df = pd.read_csv(input_path)
 
     # Create a subset of the preprocessed dataset with only the selected features
+    logger.info("Selecting features from RandomForest...")
     feature_imp = df[select_feature_imp(df, FEATURE_NUM)]
+    logger.info("Selecting features from SelectKBest...")
     anova = df[select_anova(df, FEATURE_NUM)]
+    logger.info("Selecting features from RFE...")
     rfe = df[select_rfe(df, FEATURE_NUM)]
 
     # Save the selected features to a new CSV file
+    logger.info("Saving new data to CSV files...")
     feature_imp.to_csv(PROCESSED_DATA_DIR / "feature_imp.csv", index=False)
     anova.to_csv(PROCESSED_DATA_DIR / "anova.csv", index=False)
     rfe.to_csv(PROCESSED_DATA_DIR / "rfe.csv", index=False)
