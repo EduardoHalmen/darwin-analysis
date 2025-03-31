@@ -1,27 +1,28 @@
 from pathlib import Path
 
 from loguru import logger
-from tqdm import tqdm
-import typer
+import numpy as np
 
 # ---- My imports -----
 import pandas as pd
-import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import SelectKBest, f_classif, RFE
+from sklearn.feature_selection import RFE, SelectKBest, f_classif
 from sklearn.svm import SVC
+import typer
 
 from darwin.config import (
-    PROCESSED_DATA_DIR, 
-    RANDOM_STATE, 
-    CRITERION, 
-    MAX_DEPTH, 
-    CLASS_WEIGHT, 
-    FEATURE_NUM
+    CLASS_WEIGHT,
+    CRITERION,
+    FEATURE_NUM,
+    MAX_DEPTH,
+    PROCESSED_DATA_DIR,
+    RANDOM_STATE,
 )
+
 # ---------------------
 
 app = typer.Typer()
+
 
 @app.command()
 def main(
@@ -50,7 +51,7 @@ def main(
 
 def select_feature_imp(df: pd.DataFrame, n: int) -> list[str]:
     """
-    Given a DataFrame, returns the n most important features based on the 
+    Given a DataFrame, returns the n most important features based on the
     feature_importance_ of a RandomForestClassifier
         df: pd.DataFrame
             DataFrame with the data
@@ -60,17 +61,19 @@ def select_feature_imp(df: pd.DataFrame, n: int) -> list[str]:
             List with the n most important features
     """
     # Splits the target and the features
-    X = df.drop("class", axis='columns')
+    X = df.drop("class", axis="columns")
     y = df["class"]
-    
+
     # Train the Forest
-    forest = RandomForestClassifier(n_estimators=100,
-                                random_state=RANDOM_STATE,
-                                criterion=CRITERION,
-                                max_depth=MAX_DEPTH,
-                                class_weight=CLASS_WEIGHT)
+    forest = RandomForestClassifier(
+        n_estimators=100,
+        random_state=RANDOM_STATE,
+        criterion=CRITERION,
+        max_depth=MAX_DEPTH,
+        class_weight=CLASS_WEIGHT,
+    )
     forest.fit(X, y)
-    
+
     # Get the feature importance
     feature_imp = pd.Series(forest.feature_importances_, index=X.columns)
     feature_imp = feature_imp.sort_values(ascending=False)
@@ -82,7 +85,7 @@ def select_feature_imp(df: pd.DataFrame, n: int) -> list[str]:
 
 def select_anova(df: pd.DataFrame, n: int) -> list[str]:
     """
-    Given a DataFrame, returns the n most important features based on the 
+    Given a DataFrame, returns the n most important features based on the
     ANOVA F-Value from SelectKBest
         df: pd.DataFrame
             DataFrame with the data
@@ -92,7 +95,7 @@ def select_anova(df: pd.DataFrame, n: int) -> list[str]:
             List with the n most important features
     """
     # Splits the target and the features
-    X = df.drop("class", axis='columns')
+    X = df.drop("class", axis="columns")
     y = df["class"]
 
     # Fit the selector to the data
@@ -102,7 +105,7 @@ def select_anova(df: pd.DataFrame, n: int) -> list[str]:
     # Get the selected features with highest f-value
     selected_indices = np.argsort(selector.scores_)[::-1][:n]
     selected_features = X.columns[selected_indices].tolist()
-    
+
     return selected_features
 
 
@@ -118,7 +121,7 @@ def select_rfe(df: pd.DataFrame, n: int) -> list[str]:
             List with the n most important features
     """
     # Splits the target and and features
-    X = df.drop("class", axis='columns')
+    X = df.drop("class", axis="columns")
     y = df["class"]
 
     # Fit the selector to the data

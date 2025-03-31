@@ -30,7 +30,28 @@ MAX_DEPTH = 5
 CLASS_WEIGHT = "balanced"
 TEST_SIZE = 0.2
 METRICS = ["accuracy", "precision", "recall", "f1"]
-RANDOM_SEEDS = [454, 167, 332, 322, 222, 464, 955, 35, 691, 292, 142, 42, 665, 384, 462, 700, 707, 841, 447, 208]
+RANDOM_SEEDS = [
+    454,
+    167,
+    332,
+    322,
+    222,
+    464,
+    955,
+    35,
+    691,
+    292,
+    142,
+    42,
+    665,
+    384,
+    462,
+    700,
+    707,
+    841,
+    447,
+    208,
+]
 # ---------------------
 
 # If tqdm is installed, configure loguru with tqdm.write

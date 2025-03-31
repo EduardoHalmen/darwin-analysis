@@ -1,19 +1,18 @@
 from pathlib import Path
 
 from loguru import logger
-import typer
 
 # ---- My imports -----
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+import typer
 
-from darwin.config import (
-    RAW_DATA_DIR, 
-    PROCESSED_DATA_DIR
-)
+from config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+
 # ---------------------
 
 app = typer.Typer()
+
 
 @app.command()
 def main(
