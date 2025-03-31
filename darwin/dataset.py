@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import typer
 
-from config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from darwin.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
 # ---------------------
 
