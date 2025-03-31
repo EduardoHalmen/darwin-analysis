@@ -65,7 +65,7 @@ create_environment:
 
 ## Make dataset
 .PHONY: data
-data: requirements
+data:
 	$(PYTHON_INTERPRETER) darwin/dataset.py
 
 
