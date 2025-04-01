@@ -84,11 +84,12 @@ TREE = DecisionTreeClassifier(
 
 MLP = MLPClassifier(
     hidden_layer_sizes=(100,),
-    activation="relu",
+    activation="tanh",
+    alpha=0.0001,
     solver="adam",
     random_state=RANDOM_STATE,
     learning_rate="adaptive",
-    early_stopping=True,
+    early_stopping=False,
     max_iter=1000,
 )
 
