@@ -4,7 +4,7 @@ from loguru import logger
 
 # ---- My imports -----
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import typer
 
 from darwin.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
@@ -24,7 +24,7 @@ def main(
 
     X = df.drop(["ID", "class"], axis="columns")
     # Remaps the target column to 0 and 1
-    y = df["class"].map({"P": True, "H": False})
+    y = df["class"].map({"P": 1, "H": 0})
 
     # Standardize the data
     scaler = StandardScaler()
