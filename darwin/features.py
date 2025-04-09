@@ -7,7 +7,12 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import RFE, SelectKBest, f_classif
+from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
+import shap
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingClassifier, HistGradientBoostingClassifier
+from sklearn.tree import DecisionTreeClassifier
 import typer
 
 from darwin.config import (
@@ -36,14 +41,23 @@ def main(
     feature_imp = df[select_feature_imp(df, FEATURE_NUM)]
     logger.info("Selecting features from SelectKBest...")
     anova = df[select_anova(df, FEATURE_NUM)]
-    logger.info("Selecting features from RFE...")
-    rfe = df[select_rfe(df, FEATURE_NUM)]
+    logger.info("Selecting features from RFE using Logistic Regressor...")
+    rfe_log = df[select_rfe(df, FEATURE_NUM, 'log')]
+
+    
+    logger.info("Selecting features from RFE using Decision Tree...")
+    rfe_tree = df[select_rfe(df, FEATURE_NUM, 'tree')]
+    # logger.info("Selecting features from RFE using GDB...")
+    # rfe_gdb = df[select_rfe(df, FEATURE_NUM, 'gdb')]
 
     # Save the selected features to a new CSV file
     logger.info("Saving new data to CSV files...")
     feature_imp.to_csv(PROCESSED_DATA_DIR / "feature_imp.csv", index=False)
     anova.to_csv(PROCESSED_DATA_DIR / "anova.csv", index=False)
-    rfe.to_csv(PROCESSED_DATA_DIR / "rfe.csv", index=False)
+    rfe_log.to_csv(PROCESSED_DATA_DIR / "rfe.csv", index=False)
+
+    rfe_tree.to_csv(PROCESSED_DATA_DIR / "rfe_tree.csv", index=False)
+    # rfe_gdb.to_csv(PROCESSED_DATA_DIR / "rfe_gdb.csv", index=False)
 
     logger.success("Features generation complete.")
     # -----------------------------------------
@@ -51,7 +65,7 @@ def main(
 
 def select_feature_imp(df: pd.DataFrame, n: int) -> list[str]:
     """
-    Given a DataFrame, returns the n most important features based on the
+    Given a DataFrame, returns the n most important features based on the 
     feature_importance_ of a RandomForestClassifier
         df: pd.DataFrame
             DataFrame with the data
@@ -61,17 +75,15 @@ def select_feature_imp(df: pd.DataFrame, n: int) -> list[str]:
             List with the n most important features
     """
     # Splits the target and the features
-    X = df.drop("class", axis="columns")
+    X = df.drop("class", axis='columns')
     y = df["class"]
-
+    
     # Train the Forest
-    forest = RandomForestClassifier(
-        n_estimators=100,
-        random_state=RANDOM_STATE,
-        criterion=CRITERION,
-        max_depth=MAX_DEPTH,
-        class_weight=CLASS_WEIGHT,
-    )
+    forest = RandomForestClassifier(n_estimators=100,
+                                random_state=RANDOM_STATE,
+                                criterion=CRITERION,
+                                max_depth=7,
+                                class_weight=CLASS_WEIGHT)
     forest.fit(X, y)
 
     # Get the feature importance
@@ -109,7 +121,7 @@ def select_anova(df: pd.DataFrame, n: int) -> list[str]:
     return selected_features
 
 
-def select_rfe(df: pd.DataFrame, n: int) -> list[str]:
+def select_rfe(df: pd.DataFrame, n: int, estim: str='log') -> list[str]:
     """
     Given a DataFrame, returns the n most important features selected
     by Recursive Feature Elimination with a Support Vector Classifier
@@ -124,14 +136,76 @@ def select_rfe(df: pd.DataFrame, n: int) -> list[str]:
     X = df.drop("class", axis="columns")
     y = df["class"]
 
+    if estim == 'log':
     # Fit the selector to the data
-    estimator = SVC(kernel="linear")
+        estimator = LogisticRegression(
+            random_state=RANDOM_STATE,
+            class_weight=CLASS_WEIGHT,
+        )
+
+    elif estim == 'tree':
+        estimator = DecisionTreeClassifier()
+
+    elif estim == 'gdb':
+        estimator = GradientBoostingClassifier(
+            random_state=RANDOM_STATE,
+        )
+
     selector = RFE(estimator, n_features_to_select=n, step=1)
     selector = selector.fit(X, y)
 
     selected_features = X.columns[selector.support_].tolist()
 
     return selected_features
+
+def select_shap(df: pd.DataFrame, n: int) -> list[str]:
+    """
+    Given a DataFrame, returns the n most important features selected
+    by SHAP
+        df: pd.DataFrame
+            DataFrame with the data
+        n: int
+            Number of features to return
+        return: list
+            List with the n most important features
+    """
+    gdb = GradientBoostingClassifier(
+        loss='log_loss',
+        learning_rate=0.1,
+        n_estimators=50,
+        max_depth=7,
+        criterion='friedman_mse',
+        max_features='log2',
+        min_samples_split=10,
+        random_state=RANDOM_STATE
+    )
+    
+    X = df.drop("class", axis='columns')
+    y = df["class"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.2, random_state=RANDOM_STATE)
+
+    gdb.fit(X_train, y_train)
+
+    explainer = shap.TreeExplainer(gdb)
+
+    # Calculate SHAP values for the entire test set
+    shap_values = explainer.shap_values(X_train)
+    # Calculate the mean absolute SHAP values for each feature
+    shap_importance = pd.DataFrame({
+        "feature": X_train.columns,
+        "importance": np.abs(shap_values).mean(axis=0)
+    })
+
+    # Sort features by importance in descending order
+    shap_importance = shap_importance.sort_values(by="importance", ascending=False)
+
+    # Select the top n features
+    top_features = shap_importance.head(n)["feature"].tolist()
+    return top_features
+
+
+
+
 
 
 if __name__ == "__main__":
