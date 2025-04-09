@@ -4,10 +4,13 @@ from loguru import logger
 
 # ---- My imports -----
 import pandas as pd
-from sklearn.model_selection import KFold, cross_val_score
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.utils._testing import ignore_warnings
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.ensemble import VotingClassifier
 import typer
 
 from darwin.config import (
@@ -31,7 +34,7 @@ target_path: Path = PROCESSED_DATA_DIR / "target.csv"
 
 app = typer.Typer()
 
-
+@ignore_warnings(category=ConvergenceWarning)
 @app.command()
 def main(
     model_path: Path = MODELS_DIR / "model.pkl",
@@ -39,22 +42,42 @@ def main(
     logger.info("Evaluating models...")
     # Define the list of datasets the models will be evaluated on
     raw_data = pd.read_csv(raw_data_path).drop(["ID", "class"], axis="columns")
+    preprocessed_data = pd.read_csv(preprocessed_data_path).drop(["class"], axis="columns")
 
     df_list = [
-        raw_data,
+        #raw_data,
+        preprocessed_data,
         pd.read_csv(feature_imp_path),
         pd.read_csv(anova_path),
         pd.read_csv(rfe_path),
+
+        pd.read_csv(PROCESSED_DATA_DIR / "rfe_tree.csv"),
+        pd.read_csv(PROCESSED_DATA_DIR / "rfe_gdb.csv"),
     ]
 
-    name = ["raw", "feature_imp", "anova", "rfe"]
+    name = ["raw", "feature_imp", "anova", "rfe", "rfe_tree", "rfe_gdb"]
 
+    voting = VotingClassifier(
+        estimators=[
+            ("tree", TREE),
+            ("knn", KNN),
+            ("mlp", MLP),
+        ],
+        voting="soft",)
+    
+    voting_final_score = {}
+    
     for df, name in zip(df_list, name):
         score_path: Path = SCORES_DIR / f"{name}_score.csv"
 
         # Compute the score for each model
+        logger.info(f"Evaluating {name} with DecisionTreeClassifier")
         tree_score = evaluate_model(TREE, df)
+
+        logger.info(f"Evaluating {name} with KNeighborsClassifier")
         knn_score = evaluate_model(KNN, df)
+
+        logger.info(f"Evaluating {name} with MLPClassifier")
         mlp_score = evaluate_model(MLP, df)
 
         # Save the scores to a CSV file
@@ -63,32 +86,40 @@ def main(
         )
         logger.info(f"Scores saved to {score_path}")
 
+    logger.info(f"Evaluating RFE with Voting Classifier")
+    voting_score = evaluate_model(voting, df_list[3])
+    voting_final_score_df = pd.DataFrame(voting_score).T
+    voting_final_score_df.to_csv(SCORES_DIR / "voting_final_score.csv")
+
     logger.success("Evaluating complete.")
     # -----------------------------------------
 
 
 # Defines the models used in the training
 # Might be useful to create a dictionary with the models and their parameters
-
 KNN = KNeighborsClassifier(
-    n_neighbors=5,
+    n_neighbors=3,
     weights="uniform",
-    metric="minkowski",
+    metric="euclidean",
+    algorithm="auto",
+    leaf_size=10,
+    p=1,
 )
 
 TREE = DecisionTreeClassifier(
     random_state=RANDOM_STATE,
     criterion="entropy",
     max_depth=5,
+    class_weight="balanced",
 )
 
 MLP = MLPClassifier(
-    hidden_layer_sizes=(100,),
-    activation="tanh",
+    hidden_layer_sizes=(100, 10),
+    activation="relu",
     alpha=0.0001,
     solver="adam",
     random_state=RANDOM_STATE,
-    learning_rate="adaptive",
+    learning_rate="constant",
     early_stopping=False,
     max_iter=1000,
 )
@@ -124,7 +155,7 @@ def evaluate_model(model, df: pd.DataFrame) -> pd.DataFrame:
         scores = {}
 
         # Define the cross-validation strategy
-        kf = KFold(n_splits=5, shuffle=True, random_state=seed)
+        kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
         # model.random_state = seed
 
         # Evaluate the model using cross-validation
