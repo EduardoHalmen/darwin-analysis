@@ -23,7 +23,7 @@ REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
 # ---- My Variables -----
-FEATURE_NUM = 10
+FEATURE_NUM = 20
 RANDOM_STATE = 42
 CRITERION = "entropy"
 MAX_DEPTH = 5
